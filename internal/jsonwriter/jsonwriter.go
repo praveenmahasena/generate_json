@@ -28,9 +28,9 @@ func (j *Jsonwriter) Generate() error {
 	}
 	path := path.Join(dir, "/json/")                                               // I could've done dir+"./json/" but js using this for fancy
 	if err := syscall.Unlink(path); !(err.Error() == "no such file or directory") { // at this point I should implement a errors package for myself for these kinda case
-		return fmt.Errorf("error during removing existing pre generated json dir %+v :", err)
+		return fmt.Errorf("error during removing existing pre generated json dir %+v ", err)
 	}
-	if err := syscall.Mkdir(path, 0777); err != nil {
+	if err := syscall.Mkdir(path, syscall.O_RDWR); err != nil {
 		return fmt.Errorf("error during creating json dir %+v", err)
 	}
 	if err := syscall.Chdir(path); err != nil {
@@ -47,9 +47,14 @@ func (j *Jsonwriter) Generate() error {
 
 func writeFile(i uint, wg *sync.WaitGroup) {
 	defer wg.Done()
-	fmt.Println("error here?")
 	fName := fmt.Sprintf("%v.json", i)
-	file, fileErr := syscall.Creat(fName, syscall.O_WRONLY)
+	// well this is a bug
+	// i want to create a read, deletable file that's all
+	// but this one creates a executable
+	// which makes my *delete previously generated feature* fail
+	// someone help AHHHHH
+	// or maybe the bug is in line : 33
+	file, fileErr := syscall.Creat(fName, syscall.O_RDWR)
 
 	if fileErr != nil {
 		e := fmt.Errorf("error during creating %v with %+v", fName, fileErr)
