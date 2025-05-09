@@ -3,7 +3,6 @@ all: test
 all: vet
 all: package
 all: package_race
-run: run
 
 
 test: vet
@@ -36,10 +35,7 @@ package: generate_json
 package_race: generate_json_race
 
 generate_json:
-	go build -o ./bin/generate_json/ ./cmd/generate_json/
+	go build -o ./bin/generate_json ./cmd/generate_json/
 
 generate_json_race:
 	go build --race -o ./bin/generate_json_race ./cmd/generate_json/
-
-run:
-	./bin/generate_json
