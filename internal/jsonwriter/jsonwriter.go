@@ -1,11 +1,11 @@
 package jsonwriter
 
 import (
+	"fmt"
 	"encoding/json"
 	"log/slog"
-	"fmt"
+	"os"
 	"path"
-	"sync"
 	"syscall"
 )
 
@@ -18,8 +18,8 @@ type Js struct {
 	ID uint `json:"id"`
 }
 
-func New(id uint,l *slog.Logger) *Jsonwriter {
-	return &Jsonwriter{id,l}
+func New(id uint, l *slog.Logger) *Jsonwriter {
+	return &Jsonwriter{id, l}
 }
 
 func (j *Jsonwriter) Generate() error {
@@ -37,51 +37,23 @@ func (j *Jsonwriter) Generate() error {
 	if err := syscall.Chdir(path); err != nil {
 		return fmt.Errorf("error during changing to json dir %+v", err)
 	}
-	wg := &sync.WaitGroup{}
 	for i := range j.Amount {
-		wg.Add(1)
-		go writeFile(i, wg,j.l)
+		if err := writeFile(i); err != nil {
+			j.l.Error("file write error", err.Error(), "")
+		}
 	}
-	wg.Wait()
 	return nil
 }
 
-func writeFile(i uint, wg *sync.WaitGroup,l *slog.Logger) {
-	// why logger for error handling?
-	// well these are go routines and they should not return anything
-	// I can do a channel and handle errors but at this point I don't see a value
-	// also in my opinion it would cost a lot since we are generating massive amounts of files and handling json
-	// so I prefer to have them logged to stdout
-	defer wg.Done()
-	fName := fmt.Sprintf("%v.json", i)
-	// well this is a bug
-	// i want to create a read, deletable file that's all
-	// but this one creates a executable
-	// which makes my *delete previously generated feature* fail
-	// someone help AHHHHH
-	// or maybe the bug is in line : 33
-	file, fileErr := syscall.Creat(fName, 0600)
-
-	if fileErr != nil {
-		e := fmt.Sprintf("error during creating %v", fName)
-		// I do not like to do this error unwraping
-		// but for now it's alright
-		l.Error(e,fileErr.Error(),"")
-		return
+func writeFile(i uint) error {
+	fileName:=fmt.Sprintf("%v.json",i)
+	content,err:=json.Marshal(Js{i})
+	if err!=nil{
+		return fmt.Errorf("error during generating json %+v",err)
 	}
-	defer syscall.Close(file)
-	content := Js{i}
-	b, bErr := json.MarshalIndent(content, "", "")
-
-	if bErr != nil {
-		e := fmt.Sprintf("error during generating json for file %v", fName)
-		l.Error(e,bErr.Error(),"")
-		return
+	fileErr:=os.WriteFile(fileName,content,os.FileMode(os.O_EXCL))
+	if fileErr!=nil{
+		return fmt.Errorf("error during writing into json file %+v",fileErr)
 	}
-	_, err := syscall.Write(file, b)
-	if err != nil {
-		e := fmt.Sprintf("error during writing in generating json into file %v", fName)
-		l.Error(e,err.Error(),"")
-		return
-	}
+	return nil
 }
