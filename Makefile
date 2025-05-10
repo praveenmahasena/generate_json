@@ -3,7 +3,8 @@ all: test
 all: vet
 all: package
 all: package_race
-
+all: reader
+all: reader_race
 
 test: vet
 test: base_test
@@ -34,8 +35,18 @@ package: generate_json
 
 package_race: generate_json_race
 
+reader: jsonreader
+
+reader_race: jsonreader_race
+
 generate_json:
 	go build -o ./bin/generate_json ./cmd/generate_json/
 
 generate_json_race:
 	go build --race -o ./bin/generate_json_race ./cmd/generate_json/
+
+jsonreader:
+	go build -o ./bin/jsonreader ./cmd/read_json/
+
+jsonreader_race:
+	go build --race -o ./bin/jsonreader_race ./cmd/read_json/
