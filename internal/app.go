@@ -11,13 +11,13 @@ import (
 
 func Run() error {
 	amount := cli.ReadAmount()
-	w:=io.MultiWriter(os.Stdout)
-	slogOpt:=slog.HandlerOptions{
+	w := io.MultiWriter(os.Stdout)
+	slogOpt := slog.HandlerOptions{
 		AddSource: true,
-		Level: slog.Level(1),
+		Level:     slog.Level(1),
 	}
-	l:=slog.NewJSONHandler(w,&slogOpt)
-	sloger:=slog.New(l)
-	js := jsonwriter.New(amount,sloger)
+	l := slog.NewJSONHandler(w, &slogOpt)
+	sloger := slog.New(l)
+	js := jsonwriter.New(amount, sloger)
 	return js.Generate()
 }
