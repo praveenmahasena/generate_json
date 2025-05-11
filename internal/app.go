@@ -58,7 +58,7 @@ func GracefulRead() error {
 	go jsonreader.GracefulRead(ctx, errCh,logger())
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT)
+	signal.Notify(sigCh, syscall.SIGINT,syscall.SIGTERM)
 
 	select {
 	case <-sigCh:
