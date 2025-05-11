@@ -5,6 +5,8 @@ all: package
 all: package_race
 all: reader
 all: reader_race
+all: graceful_reader
+all: graceful_reader_race
 
 test: vet
 test: base_test
@@ -38,6 +40,16 @@ package_race: generate_json_race
 reader: jsonreader
 
 reader_race: jsonreader_race
+
+graceful_reader: graceful_reader
+
+graceful_reader_race: graceful_reader_race
+
+graceful_reader:
+	go build -o ./bin/graceful_reader ./cmd/graceful_reader/
+
+graceful_reader_race:
+	go build --race -o ./bin/graceful_reader_race ./cmd/generate_json/
 
 generate_json:
 	go build -o ./bin/generate_json ./cmd/generate_json/
