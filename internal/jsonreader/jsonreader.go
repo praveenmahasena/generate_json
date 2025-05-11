@@ -61,56 +61,47 @@ func Read(l *slog.Logger) (fileRead, byteRead, error) {
 	return fr, br, nil
 }
 
-func GracefulRead(ctx context.Context, l *slog.Logger, errCh chan error) {
-	defer close(errCh)
+func GracefulRead(ctx context.Context, errCh chan error,l *slog.Logger) {
+	sigCh:=make(chan bool,1)
+	go func(ctx context.Context,sigCh chan bool){<-ctx.Done();sigCh<-true}(ctx,sigCh)
 	wd, wdErr := os.Getwd()
 	if wdErr != nil {
-		errCh <- fmt.Errorf("error during getting working dir %+v", wdErr)
-		return
+		errCh <-fmt.Errorf("error during getting work dir %+v", wdErr)
 	}
 	path := path.Join(wd, "/json/")
 	if err := os.Chdir(path); err != nil {
-		errCh <- fmt.Errorf("error during changing working dir %+v", err)
-		return
+		errCh <-fmt.Errorf("error during enter work dir %+v", wdErr)
+	}
+	files, err := os.ReadDir(".")
+	if err != nil {
+		errCh <-fmt.Errorf("error during getting work dir %+v", wdErr)
 	}
 
-	ctxCh := make(chan struct{}, 1)
-	defer close(ctxCh)
-	go func(ctx context.Context, ctxCh chan struct{}) {
-		v := <-ctx.Done()
-		ctxCh <- v
-	}(ctx, ctxCh)
-
-	files, fileErr := os.ReadDir(".")
-
-	if fileErr != nil {
-		errCh <- fmt.Errorf("error during getting work dir %+v", wdErr)
-		return
-	}
-
-	fileRead := 0
-	fileByte := 0
+	fr := fileRead(0)
+	br := byteRead(0)
 	for _, f := range files {
-		if len(ctxCh) > 0 {
-			fmt.Println("shutting down...")
+		if len(sigCh)>0{
+			fmt.Println("shutting down ....")
 			break
 		}
-		fb, fbErr := os.ReadFile(f.Name())
-		if fbErr != nil {
-			errStr := fmt.Errorf("error during reading file %+v with value %+v", f.Name(), fbErr)
+		fr += 1
+		b, err := os.ReadFile(f.Name())
+		if err != nil {
+			errStr := fmt.Errorf("error during reading file %+v", err)
+			// I'll be doing logging here for error handling since I do not see a purpose of bubbling up
 			l.Error("error", errStr.Error(), "")
 			continue
 		}
-		fileRead += 1
-		fileByte += len(fb)
+		br += byteRead(len(b))
 		js := jsonwriter.Js{}
-		if err := json.Unmarshal(fb, &js); err != nil {
-			errStr := fmt.Errorf("error during unmarshalling file %+v with value %+v", f.Name(), err)
+		if err := json.Unmarshal(b, &js); err != nil {
+			// this error handling is not nessocery
+			// but still just gonna log into stdErr if json goes wrong that's all
+			errStr := fmt.Errorf("error during unmarshalling file %+v with value %+v", f, err)
 			l.Error("error", errStr.Error(), "")
-			continue
 		}
 	}
-	fmt.Printf("file read: %v \n", fileRead)
-	fmt.Printf("file bytes read: %v \n", fileByte)
-	errCh <- nil
+	fmt.Printf("amount of file read %v \n",fr)
+	fmt.Printf("amount of file byte read %v \n",br)
+	errCh<-nil
 }

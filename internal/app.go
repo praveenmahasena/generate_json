@@ -48,20 +48,35 @@ func Read() error {
 // my brain is too tiny I cannot think of other ways :)
 // also channels for synced communication or data passing
 func GracefulRead() error {
-	sigCh := make(chan os.Signal, 1)
 	errCh := make(chan error)
-
+	// why context here I could've done a (chan bool) and make this whole thing work in a way
+	// but using it cuz it's more of a design pattern or convension
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // let's face it // I don't wanna have embarasing context leaks no fun for me
+	defer cancel()     // no context leak
+	defer close(errCh) // no channel leak
 
-	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGTRAP)
+	go jsonreader.GracefulRead(ctx, errCh,logger())
 
-	go func(ctx context.Context, err chan error) {
-		jsonreader.GracefulRead(ctx, logger(), err)
-	}(ctx, errCh)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT)
 
-	<-sigCh
-	cancel()
+	select {
+	case <-sigCh:
+		fmt.Println("cancelling...")
+		cancel()
+	case err := <-errCh:
+		return err
+	}
 
+	// I'm pretty sure after the cancel() no files would open
+	// which means if no file open no file gets json unmarshed
+	// there are no way i'm gonna have any kind of error
+	// but also I gotta make this sync or it would just suddenly stop
+	// no graceful shutdown concept being followed
+	// I can do sync.WaitGroup{}
+	// but in this case I think it's more easy to handle it with errCh since it has been already created for err handling
+	// and pretty sure there this won't give out any err after <cmd+c> pressed
+
+	<-errCh
 	return nil
 }
