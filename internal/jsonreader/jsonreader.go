@@ -23,7 +23,7 @@ type (
 // the 1st one is amount of files read
 // the 2st one is amount of file bytes read
 // the 3st one is any kind of error
-// I have created types for it on top
+// I have created types for it on top for this
 
 func Read(l *slog.Logger) (fileRead, byteRead, error) {
 	wd, wdErr := os.Getwd()
@@ -73,4 +73,44 @@ func GracefulRead(ctx context.Context, l *slog.Logger, errCh chan error) {
 		errCh <- fmt.Errorf("error during changing working dir %+v", err)
 		return
 	}
+
+	ctxCh := make(chan struct{}, 1)
+	defer close(ctxCh)
+	go func(ctx context.Context, ctxCh chan struct{}) {
+		v := <-ctx.Done()
+		ctxCh <- v
+	}(ctx, ctxCh)
+
+	files, fileErr := os.ReadDir(".")
+
+	if fileErr != nil {
+		errCh <- fmt.Errorf("error during getting work dir %+v", wdErr)
+		return
+	}
+
+	fileRead := 0
+	fileByte := 0
+	for _, f := range files {
+		if len(ctxCh) > 0 {
+			fmt.Println("shutting down...")
+			break
+		}
+		fb, fbErr := os.ReadFile(f.Name())
+		if fbErr != nil {
+			errStr := fmt.Errorf("error during reading file %+v with value %+v", f.Name(), fbErr)
+			l.Error("error", errStr.Error(), "")
+			continue
+		}
+		fileRead += 1
+		fileByte += len(fb)
+		js := jsonwriter.Js{}
+		if err := json.Unmarshal(fb, &js); err != nil {
+			errStr := fmt.Errorf("error during unmarshalling file %+v with value %+v", f.Name(), err)
+			l.Error("error", errStr.Error(), "")
+			continue
+		}
+	}
+	fmt.Printf("file read: %v \n", fileRead)
+	fmt.Printf("file bytes read: %v \n", fileByte)
+	errCh <- nil
 }

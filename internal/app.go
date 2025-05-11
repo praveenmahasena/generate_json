@@ -56,12 +56,12 @@ func GracefulRead() error {
 
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGTRAP)
 
-	go func(ctx context.Context,err chan error) {
-		jsonreader.GracefulRead(ctx,logger(),err)
-	}(ctx,errCh)
+	go func(ctx context.Context, err chan error) {
+		jsonreader.GracefulRead(ctx, logger(), err)
+	}(ctx, errCh)
 
 	<-sigCh
 	cancel()
 
-	return <-errCh
+	return nil
 }
