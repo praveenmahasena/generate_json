@@ -1,7 +1,6 @@
 package jsonreader
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -61,27 +60,24 @@ func Read(l *slog.Logger) (fileRead, byteRead, error) {
 	return fr, br, nil
 }
 
-func GracefulRead(ctx context.Context, errCh chan error,l *slog.Logger) {
-	sigCh:=make(chan bool,1)
-	go func(ctx context.Context,sigCh chan bool){<-ctx.Done();sigCh<-true}(ctx,sigCh)
+func GracefulRead(sigCh chan os.Signal, l *slog.Logger) (fileRead, byteRead, error) {
 	wd, wdErr := os.Getwd()
 	if wdErr != nil {
-		errCh <-fmt.Errorf("error during getting work dir %+v", wdErr)
+		return 0,0,fmt.Errorf("error during getting work dir %+v", wdErr)
 	}
 	path := path.Join(wd, "/json/")
 	if err := os.Chdir(path); err != nil {
-		errCh <-fmt.Errorf("error during enter work dir %+v", wdErr)
+		return 0,0,fmt.Errorf("error during enter work dir %+v", wdErr)
 	}
 	files, err := os.ReadDir(".")
 	if err != nil {
-		errCh <-fmt.Errorf("error during getting work dir %+v", wdErr)
+		return 0,0,fmt.Errorf("error during getting work dir %+v", wdErr)
 	}
-
 	fr := fileRead(0)
 	br := byteRead(0)
 	for _, f := range files {
-		if len(sigCh)>0{
-			fmt.Println("shutting down ....")
+		if len(sigCh)>=1{
+			fmt.Println("cancelling...")
 			break
 		}
 		fr += 1
@@ -101,7 +97,6 @@ func GracefulRead(ctx context.Context, errCh chan error,l *slog.Logger) {
 			l.Error("error", errStr.Error(), "")
 		}
 	}
-	fmt.Printf("amount of file read %v \n",fr)
-	fmt.Printf("amount of file byte read %v \n",br)
-	errCh<-nil
+	fmt.Println("almost cancelled....")
+	return fr,br,nil
 }
