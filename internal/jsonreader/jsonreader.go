@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/praveenmahasena/generate_json/internal/jsondelete"
 	"github.com/praveenmahasena/generate_json/internal/jsonwriter"
 )
 
@@ -63,20 +64,20 @@ func Read(l *slog.Logger) (fileRead, byteRead, error) {
 func GracefulRead(sigCh chan os.Signal, l *slog.Logger) (fileRead, byteRead, error) {
 	wd, wdErr := os.Getwd()
 	if wdErr != nil {
-		return 0,0,fmt.Errorf("error during getting work dir %+v", wdErr)
+		return 0, 0, fmt.Errorf("error during getting work dir %+v", wdErr)
 	}
 	path := path.Join(wd, "/json/")
 	if err := os.Chdir(path); err != nil {
-		return 0,0,fmt.Errorf("error during enter work dir %+v", wdErr)
+		return 0, 0, fmt.Errorf("error during enter work dir %+v", wdErr)
 	}
 	files, err := os.ReadDir(".")
 	if err != nil {
-		return 0,0,fmt.Errorf("error during getting work dir %+v", wdErr)
+		return 0, 0, fmt.Errorf("error during getting work dir %+v", wdErr)
 	}
 	fr := fileRead(0)
 	br := byteRead(0)
 	for _, f := range files {
-		if len(sigCh)>=1{
+		if len(sigCh) >= 1 {
 			fmt.Println("cancelling...")
 			break
 		}
@@ -88,6 +89,9 @@ func GracefulRead(sigCh chan os.Signal, l *slog.Logger) (fileRead, byteRead, err
 			l.Error("error", errStr.Error(), "")
 			continue
 		}
+		if err := jsondelete.DeleteFile(f.Name()); err != nil {
+			l.Error("error", err.Error(), "")
+		}
 		br += byteRead(len(b))
 		js := jsonwriter.Js{}
 		if err := json.Unmarshal(b, &js); err != nil {
@@ -98,5 +102,5 @@ func GracefulRead(sigCh chan os.Signal, l *slog.Logger) (fileRead, byteRead, err
 		}
 	}
 	fmt.Println("almost cancelled....")
-	return fr,br,nil
+	return fr, br, nil
 }
