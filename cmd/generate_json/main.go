@@ -12,8 +12,8 @@ import (
 
 func main() {
 	amount := cli.ReadAmount()
-	js := jsonwriter.New(amount,logger.Logger())
-	if err:= js.Generate();err!=nil{
-		fmt.Fprintln(os.Stderr,err)
+	js := jsonwriter.New(amount, logger.Logger())
+	if err := js.Generate(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
 }

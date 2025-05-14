@@ -26,8 +26,8 @@ func (j *Jsonwriter) Generate() error {
 	if dirErr != nil {
 		return fmt.Errorf("error during getting work dir %+v", dirErr)
 	}
-	path := path.Join(dir, "/json/")                                                // I could've done dir+"./json/" but js using this for fancy
-	if err := os.RemoveAll(path);err!=nil{
+	path := path.Join(dir, "/json/") // I could've done dir+"./json/" but js using this for fancy
+	if err := os.RemoveAll(path); err != nil {
 		return fmt.Errorf("error during removing existing pre generated json dir %+v ", err)
 	}
 	if err := os.Mkdir(path, 0777); err != nil {
@@ -46,7 +46,7 @@ func (j *Jsonwriter) Generate() error {
 
 func writeFile(i uint) error {
 	fileName := fmt.Sprintf("%v.json", i)
-	content, err := json.MarshalIndent(Js{i}," ","")
+	content, err := json.MarshalIndent(Js{i}, " ", "")
 	if err != nil {
 		return fmt.Errorf("error during generating json %+v", err)
 	}
