@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/praveenmahasena/generate_json/internal/jsondelete"
 	"github.com/praveenmahasena/generate_json/internal/jsonwriter"
 )
 
@@ -65,6 +66,7 @@ func Read(l *slog.Logger) (filesRead, bytesRead, error) {
 		if err = json.Unmarshal(fileBytes[:n], js); err != nil {
 			log.Printf("error during unmarshal file %v with value %+v", name, err)
 		}
+		jsondelete.DeleteFile(name)
 	}
 	return fileRead, byteRead, nil
 }
@@ -116,6 +118,7 @@ func GracefulRead(sigCh chan os.Signal, l *slog.Logger) (filesRead, bytesRead, e
 		if err = json.Unmarshal(fileBytes[:n], js); err != nil {
 			log.Printf("error during unmarshal file %v with value %+v", name, err)
 		}
+		jsondelete.DeleteFile(name)
 	}
 	return fileRead, byteRead, nil
 }
