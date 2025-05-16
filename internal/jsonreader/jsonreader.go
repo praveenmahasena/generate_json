@@ -1,13 +1,14 @@
 package jsonreader
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
-	"path"
+	"os/exec"
 
 	"github.com/praveenmahasena/generate_json/internal/jsondelete"
 	"github.com/praveenmahasena/generate_json/internal/jsonwriter"
@@ -18,113 +19,98 @@ type (
 	byteRead uint
 )
 
-// TODO: refactor get similar func to util package
-
-// I don't wanna do named return params
-// it's just not my style if it's nessocery please let me know
-// the 1st one is amount of files read
-// the 2st one is amount of file bytes read
-// the 3st one is any kind of error
-// I have created types for it on top for this
-
+// these approach is more like writing the ls cmd out put into a file and reading it in streaming way one by one which makes it more performance and less memory usage
+// but the file does not refresh or change state so I had to close and reopen it please help
 func Read(l *slog.Logger) (fileRead, byteRead, error) {
-	wd, wdErr := os.Getwd()
-	if wdErr != nil {
-		return 0, 0, fmt.Errorf("error during getting work dir %+v", wdErr)
+
+	temp, tempErr := os.OpenFile("temp", os.O_TRUNC|os.O_RDWR|os.O_CREATE, 0660)
+	if tempErr != nil {
+		return 0, 0, fmt.Errorf("error during opening up temp file %+v", tempErr)
 	}
-	path := path.Join(wd, "/json/")
-	if err := os.Chdir(path); err != nil {
-		return 0, 0, fmt.Errorf("error during enter work dir %+v", err)
+	cmd := exec.Command("ls", "-1", "./json/")
+	cmd.Stdout = temp
+
+	if err := cmd.Run(); err != nil {
+		return 0, 0, fmt.Errorf("error during running the list cmd %+v", err)
 	}
-	files, err := os.ReadDir(".")
-	if err != nil {
-		return 0, 0, fmt.Errorf("error during getting work dir %+v", err)
+	temp.Close()
+	t, tErr := os.Open("temp")
+	if tErr != nil {
+		return 0, 0, fmt.Errorf("error during Opening the list file %+v", tErr)
 	}
-	fr := fileRead(0)
-	br := byteRead(0)
-	for _, f := range files {
-		fr += 1
-		b, err := os.ReadFile(f.Name())
+	r := bufio.NewScanner(t)
+	r.Split(bufio.ScanLines)
+
+	var (
+		f         *os.File
+		err       error
+		filesRead fileRead
+		bytesRead byteRead
+	)
+	b := bytes.NewBuffer(nil)
+	for r.Scan() {
+		f, err = os.Open("./json/" + r.Text())
 		if err != nil {
-			errStr := fmt.Errorf("error during reading file %+v", err)
-			// I'll be doing logging here for error handling since I do not see a purpose of bubbling up
-			l.Error("error", errStr.Error(), "")
+			fmt.Println(err)
 			continue
 		}
-		br += byteRead(len(b))
-		js := jsonwriter.Js{}
-		if err := json.Unmarshal(b, &js); err != nil {
-			// this error handling is not nessocery
-			// but still just gonna log into stdErr if json goes wrong that's all
-			errStr := fmt.Errorf("error during unmarshalling file %+v with value %+v", f, err)
-			l.Error("error", errStr.Error(), "")
-		}
-		if err := jsondelete.DeleteFile(f.Name()); err != nil {
-			errStr := fmt.Errorf("error during deleting file %+v with value %+v", f.Name(), err)
-			l.Error("error", errStr.Error(), "")
-		}
+		io.Copy(b, f)
+		f.Close()
+		filesRead += 1
+		bytesRead += byteRead(b.Len())
+		js := &jsonwriter.Js{}
+		json.Unmarshal(b.Bytes(),js)
+		jsondelete.DeleteFile("./json/"+r.Text())
 	}
-	return fr, br, nil
+	t.Close()
+	jsondelete.DeleteFile("temp")
+	return filesRead, bytesRead, err
 }
 
 // fileRead, byteRead, error
-func GracefulRead(sigCh chan os.Signal, l *slog.Logger) (uint, uint, error) {
-	wd, wdErr := os.Getwd()
-	if wdErr != nil {
-		return 0, 0, fmt.Errorf("error during getting work dir %+v", wdErr)
+// read the read func comment please
+func GracefulRead(sigCh chan os.Signal, l *slog.Logger) (fileRead, byteRead, error) {
+	temp, tempErr := os.OpenFile("temp", os.O_TRUNC|os.O_RDWR|os.O_CREATE, 0660)
+	if tempErr != nil {
+		return 0, 0, fmt.Errorf("error during opening up temp file %+v", tempErr)
 	}
-	p := path.Join(wd, "/json/")
-	if err := os.Chdir(p); err != nil {
-		return 0, 0, fmt.Errorf("error during moving into json work dir %+v", err)
+	cmd := exec.Command("ls", "-1", "./json/")
+	cmd.Stdout = temp
+
+	if err := cmd.Run(); err != nil {
+		return 0, 0, fmt.Errorf("error during running the list cmd %+v", err)
 	}
+	temp.Close()
+	t, tErr := os.Open("temp")
+	if tErr != nil {
+		return 0, 0, fmt.Errorf("error during Opening the list file %+v", tErr)
+	}
+	r := bufio.NewScanner(t)
+	r.Split(bufio.ScanLines)
+
 	var (
-		errCount      uint8
-		fileTrack     uint
-		fName         string
-		file          *os.File
-		err           error
-		buf           []byte = make([]byte, 100)
-		n             int
-		fileBytesRead uint
-		fileRead      uint
+		f         *os.File
+		err       error
+		filesRead fileRead
+		bytesRead byteRead
 	)
-
-	for {
-		if len(sigCh) == 1 {
-			fmt.Println("cancelling...")
-			break
-		}
-		if errCount >= 1 {
-			break
-		}
-		fName, fileTrack = fmt.Sprintf("%v.json", fileTrack), fileTrack+1
-		file, err = os.OpenFile(fName, os.O_RDONLY, 0)
+	b := bytes.NewBuffer(nil)
+	for r.Scan() {
+		if (len(sigCh))==1{break}
+		f, err = os.Open("./json/" + r.Text())
 		if err != nil {
-			l.Error("skipping file", fName, "")
-			err = nil
-			errCount += 1
+			fmt.Println(err)
 			continue
 		}
-		n, err = io.ReadFull(file, buf)
-		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
-			l.Error("skipping file", fName, "")
-			err = nil
-			continue
-		}
-		fileBytesRead += uint(n)
-		fileRead += 1
-		file.Close()
+		io.Copy(b, f)
+		f.Close()
+		jsondelete.DeleteFile("./json/"+r.Text())
+		filesRead += 1
+		bytesRead += byteRead(b.Len())
 		js := &jsonwriter.Js{}
-
-		err = json.Unmarshal(buf[:n], js)
-		if err != nil {
-			l.Error("error during unmarshal json", err.Error(), "")
-			err = nil
-		}
-		if err = jsondelete.DeleteFile(fName); err != nil {
-			l.Error("error during deleting json file", err.Error(), "")
-			err = nil
-		}
+		json.Unmarshal(b.Bytes(),js)
 	}
-	return fileRead, fileBytesRead, nil
+	t.Close()
+	jsondelete.DeleteFile("temp")
+	return filesRead, bytesRead, err
 }
