@@ -1,5 +1,5 @@
 package internal
 
-type Js struct{
+type Js struct {
 	ID uint `json:"id"`
 }
