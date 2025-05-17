@@ -8,16 +8,14 @@ import (
 	"log"
 	"os"
 	"syscall"
+
+	"github.com/praveenmahasena/generate_json/internal"
 )
 
 type (
 	filesRead uint
 	bytesRead uint
 )
-
-type Js struct {
-	ID uint `json:"id"`
-}
 
 func main() {
 	fileRead, byteRead, err := read()
@@ -74,7 +72,7 @@ func read() (filesRead, bytesRead, error) {
 		fileRead += 1
 		byteRead += bytesRead(n)
 		file.Close()
-		js := &Js{}
+		js := &internal.Js{}
 		if err = json.Unmarshal(fileBytes[:n], js); err != nil {
 			log.Printf("error during unmarshal file %v with value %+v", name, err)
 		}

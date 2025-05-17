@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/praveenmahasena/generate_json/internal"
 )
 
 func main() {
@@ -19,10 +21,6 @@ func main() {
 		fmt.Fprint(os.Stderr, err)
 	}
 	fmt.Println(fileRead, byteRead)
-}
-
-type Js struct{
-	ID uint `json:"id"`
 }
 
 func gracefulRead(sigCh chan os.Signal) (uint, uint, error) {
@@ -69,7 +67,7 @@ func gracefulRead(sigCh chan os.Signal) (uint, uint, error) {
 		fileRead += 1
 		byteRead += uint(n)
 		file.Close()
-		js := &Js{}
+		js := &internal.Js{}
 		if err = json.Unmarshal(fileBytes[:n], js); err != nil {
 			log.Printf("error during unmarshal file %v with value %+v", name, err)
 		}

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/praveenmahasena/generate_json/internal"
 )
 
 var (
@@ -22,10 +24,6 @@ func main() {
 	if err := js.generate(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
-}
-
-type Js struct {
-	ID uint `json:"id"`
 }
 
 func new(id uint) *Jsonwriter {
@@ -63,7 +61,7 @@ func (j *Jsonwriter) generate() error {
 
 func writeFile(i uint) error {
 	fileName := fmt.Sprintf("%v.json", i)
-	content, err := json.MarshalIndent(Js{i}, " ", "")
+	content, err := json.MarshalIndent(internal.Js{i}, " ", "")
 	if err != nil {
 		return fmt.Errorf("error during generating json %+v", err)
 	}
