@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"syscall"
 )
 
 var (
@@ -53,7 +52,7 @@ func (j *Jsonwriter) generate() error {
 			log.Printf("error during making dir for json %+v", err)
 			continue
 		}
-		if err := syscall.Chdir("./" + dirName); err != nil {
+		if err := os.Chdir("./" + dirName); err != nil {
 			log.Printf("error during moving into dir for json with value %v ,%+v", dirName, err)
 			continue
 		}
@@ -63,7 +62,7 @@ func (j *Jsonwriter) generate() error {
 				log.Println()
 			}
 		}
-		if err := syscall.Chdir("../"); err != nil {
+		if err := os.Chdir("../"); err != nil {
 			return fmt.Errorf("error during moving moving dir in json %+v", err)
 		}
 	}
