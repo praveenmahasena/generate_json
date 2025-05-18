@@ -31,7 +31,7 @@ func read() (uint, uint, uint, error) {
 		return 0, 0, 0, fmt.Errorf("cannot open dir json %+v", fileErr)
 	}
 	defer file.Close()
-	dirNames, dirNameErr := file.Readdirnames(100)
+	dirNames, dirNameErr := file.Readdirnames(10)
 	if dirNameErr != nil {
 		return 0, 0, 0, fmt.Errorf("cannot read json dir names %+v", dirNameErr)
 	}
@@ -46,7 +46,7 @@ func read() (uint, uint, uint, error) {
 			log.Printf("error during opening in dir %v with value %+v", dir, fErr)
 			continue
 		}
-		fileNames, err := f.Readdirnames(10_000)
+		fileNames, err := f.Readdirnames(10)
 		if err != nil {
 			log.Printf("error during reading all json file name in dir %v with value %+v", dir, err)
 			f.Close()
