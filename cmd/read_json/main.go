@@ -37,15 +37,18 @@ func read() (uint, uint, error) {
 			fileRead += 1
 			readBytes += uint(len(b))
 			json.Unmarshal(b,internal.Js{}) // I'm doing like this cuz we don't do much here with json data
-			deleteFile(path)
 		}
 		return nil
 	})
-	return fileRead, readBytes, err
+	if err!=nil{
+		return fileRead, readBytes, err
+	}
+	deleteFile("./json")
+	return fileRead, readBytes, nil
 }
 
 func deleteFile(fn string) error {
-	if err := os.Remove(fn); err != nil {
+	if err := os.RemoveAll(fn); err != nil {
 		return fmt.Errorf("error during deleting file %v with value %v", fn, err)
 	}
 	return nil

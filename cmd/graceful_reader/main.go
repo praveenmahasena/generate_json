@@ -41,12 +41,14 @@ func gracefulRead(sigCh chan os.Signal) (uint, uint, error) {
 			fileRead += 1
 			readBytes += uint(len(b))
 			json.Unmarshal(b,internal.Js{}) // I'm doing like this cuz we don't do much here with json data
-			deleteFile(path)
 		}
 		return nil
 	})
-
-	return fileRead, readBytes, err
+	if err!=nil{
+		return fileRead, readBytes, err
+	}
+	deleteFile("./json")
+	return fileRead, readBytes, nil
 }
 
 func deleteFile(fName string) error {
