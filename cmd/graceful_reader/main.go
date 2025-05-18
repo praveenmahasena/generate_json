@@ -40,7 +40,7 @@ func gracefulRead(sigCh chan os.Signal) (uint, uint, error) {
 			}
 			fileRead += 1
 			readBytes += uint(len(b))
-			json.Unmarshal(b,internal.Js{}) // I'm doing like this cuz we don't do much here with json data
+			json.Unmarshal(b,&internal.Js{}) // I'm doing like this cuz we don't do much here with json data
 		}
 		return nil
 	})

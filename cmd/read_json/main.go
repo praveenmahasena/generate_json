@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	 fileRead, byteRead, err := read()
+	fileRead, byteRead, err := read()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
@@ -36,11 +36,11 @@ func read() (uint, uint, error) {
 			}
 			fileRead += 1
 			readBytes += uint(len(b))
-			json.Unmarshal(b,internal.Js{}) // I'm doing like this cuz we don't do much here with json data
+			json.Unmarshal(b, &internal.Js{}) // I'm doing like this cuz we don't do much here with json data
 		}
 		return nil
 	})
-	if err!=nil{
+	if err != nil {
 		return fileRead, readBytes, err
 	}
 	deleteFile("./json")
