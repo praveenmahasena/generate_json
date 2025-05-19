@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	defaultAmount      uint = 10
-	defaultDirectories uint = 10
+	defaultAmount      uint = 100
+	defaultDirectories uint = 1000
 )
 
 type Jsonwriter struct {

@@ -5,11 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
+	"path"
 
 	"github.com/praveenmahasena/generate_json/internal"
 )
@@ -26,32 +25,81 @@ func main() {
 }
 
 func gracefulRead(sigCh chan os.Signal) (uint, uint, error) {
+	dir, dirErr := os.Open("./json")
+	if dirErr != nil {
+		return 0, 0, fmt.Errorf("error during opening up %v with value %+v", "./json", dirErr)
+	}
+	defer dir.Close()
 	var (
 		fileRead  uint
-		readBytes uint
+		bytesRead uint
 	)
-	err := filepath.Walk("./json", func(path string, info fs.FileInfo, err error) error {
-		if len(sigCh)==1 {return fmt.Errorf("cancel during readin files")}
-		if !info.IsDir() {
-			b, err := os.ReadFile("./" + path)
-			if err != nil && !errors.Is(err, io.EOF) {
-				log.Printf("error during reading file %v with value %+v", path, err)
-				return nil
-			}
-			fileRead += 1
-			readBytes += uint(len(b))
-			json.Unmarshal(b,&internal.Js{}) // I'm doing like this cuz we don't do much here with json data
+	for {
+		if len(sigCh) == 1 {
+			break
 		}
-		return nil
-	})
-	if err!=nil{
-		return fileRead, readBytes, err
+		dirNames, dirNamesErr := dir.Readdirnames(10)
+		if dirNamesErr != nil && !errors.Is(dirNamesErr, io.EOF) {
+			break
+		}
+		for _, jDir := range dirNames {
+			f, b, err := readSubDir(jDir, sigCh)
+			if err != nil {
+				log.Println(err)
+			}
+			fileRead += f
+			bytesRead += b
+		}
+
+		if len(dirNames) < 10 {
+			break
+		}
 	}
-	deleteFile("./json")
-	return fileRead, readBytes, nil
+	deleteAll("./json")
+	return fileRead, bytesRead, nil
 }
 
-func deleteFile(fName string) error {
+func readSubDir(jDir string, sigCh chan os.Signal) (uint, uint, error) {
+	p := path.Join("./json/", jDir, "./")
+	dir, dirErr := os.Open(p)
+	if dirErr != nil {
+		return 0, 0, fmt.Errorf("error during opening dir %v with value %+v", p, dirErr)
+	}
+	defer dir.Close()
+	var (
+		fileRead  uint
+		bytesRead uint
+	)
+	for {
+		if len(sigCh) == 1 {
+			break
+		}
+		dirNames, dirNamesErr := dir.Readdirnames(10)
+		if dirNamesErr != nil && !errors.Is(dirNamesErr, io.EOF) {
+			break
+		}
+		for _, jDir := range dirNames {
+			fd := p + "/" + jDir
+			b, err := os.ReadFile(fd)
+			if err != nil {
+				log.Printf("error during reading out file %v with value %+v", fd, err)
+				deleteAll(fd)
+				continue
+			}
+			deleteAll(fd)
+			fileRead += 1
+			bytesRead += uint(len(b))
+			json.Unmarshal(b,&internal.Js{})
+		}
+		if len(dirNames) < 10 {
+			break
+		}
+	}
+	deleteAll(p)
+	return fileRead, bytesRead, nil
+}
+
+func deleteAll(fName string) error {
 	if err := os.RemoveAll(fName); err != nil {
 		return fmt.Errorf("error during deleting file %+v", fName)
 	}
