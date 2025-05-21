@@ -1,10 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
+
+	"github.com/praveenmahasena/generate_json/internal"
 )
 
 var (
@@ -18,9 +21,10 @@ type Jsonwriter struct {
 }
 
 func main() {
+	logger := internal.NewLogger(os.Stderr, true, 1)
 	amount, directories := readAmount()
 	js := new(amount, directories)
-	if err := js.generate(); err != nil {
+	if err := js.generate(logger); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }
@@ -36,7 +40,7 @@ func readAmount() (uint, uint) {
 	return *(amount), *(directories) // call me old idc but been doing Clang for awhile and this *() reference seems more appealing then just doing *
 }
 
-func (j *Jsonwriter) generate() error {
+func (j *Jsonwriter) generate(l *slog.Logger) error {
 	if err := os.RemoveAll("json"); err != nil {
 		return fmt.Errorf("error during removing previous json dir %+v ", err)
 	}
@@ -49,17 +53,20 @@ func (j *Jsonwriter) generate() error {
 	for d := range j.directories {
 		dirName := fmt.Sprintf("%vjson", d)
 		if err := os.Mkdir(dirName, 0777); err != nil {
-			log.Printf("error during making dir for json %+v", err)
+			l.Error("error during making dir for json", "error value", err.Error(), "process", "skipping dir", "progress", fmt.Sprintf("%v", dirName))
 			continue
 		}
 		if err := os.Chdir("./" + dirName); err != nil {
-			log.Printf("error during moving into dir for json with value %v ,%+v", dirName, err)
+			l.Error("error during changing dir for json", "error value", err.Error(), "process", "skipping dir", "progress", fmt.Sprintf("%v", dirName))
 			continue
 		}
 
 		for a := range j.amount {
 			if err := writeFile(a); err != nil {
-				log.Println()
+				l.Error("error during writing into json file", "error value", err.Error(), "process", "retry 1", "progress", fmt.Sprintf("writing again into %v", dirName))
+				if err := writeFile(a); err != nil {
+					l.Error("error during writing into json file", "error value", err.Error(), "process", "retry 1 failed", "progress", fmt.Sprintf("skipping file %v", dirName))
+				}
 			}
 		}
 		if err := os.Chdir("../"); err != nil {
@@ -71,9 +78,11 @@ func (j *Jsonwriter) generate() error {
 
 func writeFile(i uint) error {
 	fName := fmt.Sprintf("%v.json", i)
-	b := `{
-		"id":`+fmt.Sprintf("%v",i)+`
-	}`
+	js := internal.Js{ID: i}
+	b, err := json.MarshalIndent(js, "", "")
+	if err != nil {
+		return fmt.Errorf("error during preparing json content for file %v with value %+v", fName, err)
+	}
 	if err := os.WriteFile(fName, []byte(b), 0666); err != nil {
 		return fmt.Errorf("error during writing into file %v with value %+v", fName, err)
 	}
