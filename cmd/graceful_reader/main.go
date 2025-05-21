@@ -86,7 +86,7 @@ func readSubDir(jDir string, sigCh chan os.Signal,l *slog.Logger) (uint, uint, e
 	)
 	for {
 		if len(sigCh) == 1 {
-			l.Info("cancelling due to signal")
+			// no need to do any logs here since the parent loop is gonna run one more time before being cancelled so and it has the cancel log
 			break
 		}
 		dirNames, dirNamesErr := dir.Readdirnames(10)
