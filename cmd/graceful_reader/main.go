@@ -36,18 +36,17 @@ func gracefulRead(sigCh chan os.Signal, l *slog.Logger) (uint, uint, error) {
 		fileRead  uint
 		bytesRead uint
 	)
-	var dirCount uint
 	for {
 		if len(sigCh) == 1 {
 			l.Info("cancelling due to signal")
 			break
 		}
-		dirNames, dirNamesErr := dir.Readdirnames(10)
+		dirNames, dirNamesErr := dir.Readdirnames(-1)
 		if dirNamesErr != nil && !errors.Is(dirNamesErr, io.EOF) {
 			return fileRead, bytesRead, fmt.Errorf("error during reading out directories with value %+v", dirNamesErr)
 		}
 		for _, jDir := range dirNames {
-			f, b, err := readSubDir(jDir, sigCh,l)
+			f, b, err := readSubDir(jDir, sigCh, l)
 			if err != nil {
 				log.Println(err)
 			}
@@ -56,61 +55,58 @@ func gracefulRead(sigCh chan os.Signal, l *slog.Logger) (uint, uint, error) {
 		}
 
 		if len(dirNames) < 10 {
-			dirCount += 1
-			l.Info("sucessfully read a dir", "dir amount read", dirCount)
+			l.Info("all dir read...")
 			break
 		}
 	}
-	// I am not a if else if fan but I'm okay doing it here cuz this one has very small logic block
-	if d, err := dir.Readdirnames(10); err != nil {
-		return fileRead, bytesRead, fmt.Errorf("error during deleting process of checking on json dir %+v", err)
-	} else if len(d) > 0 {
-		return fileRead, bytesRead, fmt.Errorf("unread files exists in some dirs fully deletion cancelled with value %+v", err)
-	}
-	if err := deleteAll("./json"); err != nil {
-		return fileRead, bytesRead, fmt.Errorf("error during deleting root of json dir collection with value %+v", err)
-	}
+	// I can do somekind of bubble up value and make the "./json" dir get deleted but i do not think it's that important since all the other dirs are getting cleaned up :)
 	return fileRead, bytesRead, nil
 }
 
-func readSubDir(jDir string, sigCh chan os.Signal,l *slog.Logger) (uint, uint, error) {
-	p := path.Join("./json/", jDir, "./")
+func readSubDir(jDir string, sigCh chan os.Signal, l *slog.Logger) (uint, uint, error) {
+	p := path.Join("./json", jDir, "/")
 	dir, dirErr := os.Open(p)
 	if dirErr != nil {
-		return 0, 0, fmt.Errorf("error during opening dir %v with value %+v", p, dirErr)
+		return 0, 0, fmt.Errorf("error during opening up %v with value %+v", p, dirErr)
 	}
-	defer dir.Close()
+	defer dir.Close() // Im gonna delete the dir if the file amount I got is == 0 if I do this while having this in a defer stack would get me an error?
+	// for safety reason I'll have some more close statements in places
+	// yes closing a closed *os.File is gonna get me error but guess what this kind of error is meaningless
+	// so I do not have to manage it
+	dirNames, dirNameErr := dir.Readdirnames(-1)
+	if dirNameErr != nil && !errors.Is(dirNameErr,io.EOF){
+		return 0, 0, fmt.Errorf("error during getting up %v all the files with value of %+v", p, dirNameErr)
+	}
 	var (
-		fileRead  uint
-		bytesRead uint
+		failedFiles uint
+		fileRead    uint
+		bytesRead   uint
 	)
-	for {
+	for _, name := range dirNames {
 		if len(sigCh) == 1 {
-			// no need to do any logs here since the parent loop is gonna run one more time before being cancelled so and it has the cancel log
 			break
 		}
-		dirNames, dirNamesErr := dir.Readdirnames(10)
-		if dirNamesErr != nil && !errors.Is(dirNamesErr, io.EOF) {
-			break
+		b, err := os.ReadFile(p + "/" + name)
+		if err != nil {
+			failedFiles += 1
+			l.Error("error during read file", "file name", p+"/"+name, "error value", err)
+			continue
 		}
-		for _, jDir := range dirNames {
-			fd := p + "/" + jDir
-			b, err := os.ReadFile(fd)
-			if err != nil {
-				log.Printf("error during reading out file %v with value %+v", fd, err)
-				deleteAll(fd)
-				continue
-			}
-			deleteAll(fd)
-			fileRead += 1
-			bytesRead += uint(len(b))
-			json.Unmarshal(b, &internal.Js{})
+		if err := json.Unmarshal(b, &internal.Js{}); err != nil {
+			failedFiles += 1
+			l.Error("error during decoding json into file", "file name", p+"/"+name, "error value", err)
+			continue
 		}
-		if len(dirNames) < 10 {
-			break
-		}
+		fileRead += 1
+		bytesRead += uint(len(b))
 	}
-	deleteAll(p)
+	if failedFiles > 0 {
+		return fileRead, bytesRead, fmt.Errorf("dir %v coulndnt be deleted", p)
+	}
+	dir.Close()
+	if err := deleteAll(p); err != nil {
+		return fileRead, bytesRead, fmt.Errorf("error during deleting dir %v with value %+v", p, err)
+	}
 	return fileRead, bytesRead, nil
 }
 
