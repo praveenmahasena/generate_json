@@ -83,6 +83,7 @@ func read(l *slog.Logger) (uint, uint, error) {
 					bytesRead += uint(len(b))
 				}
 			}
+			subDirNames.Close()
 		}
 	}
 	if fileskip >= 1 {

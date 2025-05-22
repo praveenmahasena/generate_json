@@ -98,6 +98,7 @@ func gracefulRead(sigCh chan os.Signal, l *slog.Logger) (uint, uint, error) {
 					bytesRead += uint(len(b))
 				}
 			}
+			subDirNames.Close()
 		}
 	}
 	if fileskip >= 1 {
