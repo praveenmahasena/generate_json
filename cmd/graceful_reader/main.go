@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
+	"path"
 	"sync/atomic"
 
 	"github.com/praveenmahasena/generate_json/internal"
@@ -33,12 +35,14 @@ func gracefulRead(sigCh chan os.Signal, l *slog.Logger) (uint, uint, error) {
 	defer jsonDir.Close()
 
 	var (
-		fileRead  *atomic.Uint64
-		bytesRead *atomic.Uint64
+		fileRead  = atomic.Uint64{}
+		bytesRead = atomic.Uint64{}
 	)
 
 	for {
-		if len(sigCh)==1{break}
+		if len(sigCh) == 1 {
+			break
+		}
 		subDirNames, subDirNameErr := jsonDir.Readdirnames(10)
 		if subDirNameErr != nil {
 			if errors.Is(subDirNameErr, io.EOF) {
@@ -48,7 +52,7 @@ func gracefulRead(sigCh chan os.Signal, l *slog.Logger) (uint, uint, error) {
 			l.Error("error during reading ./json sub dirs", "error value", subDirNameErr, "process", "skipping...")
 			continue
 		}
-		if err := prossesDirectories(subDirNames, fileRead, bytesRead,sigCh, l); err != nil {
+		if err := prossesDirectories(subDirNames, &fileRead, &bytesRead, sigCh, l); err != nil {
 			// I did not change any kind of logic at all
 			// created prossesDirectories([]string, *atomic.Uint64,*slog.Logger) error
 			// passed in atomic pointers
@@ -59,53 +63,63 @@ func gracefulRead(sigCh chan os.Signal, l *slog.Logger) (uint, uint, error) {
 	return uint(fileRead.Load()), uint(bytesRead.Load()), nil
 }
 
-func prossesDirectories(subDirNames []string, fileRead, bytesRead *atomic.Uint64,sigCh chan os.Signal, l *slog.Logger) error {
-	for _, subDirs := range subDirNames {
-		if len(sigCh)==1{
+func prossesDirectories(subDirNames []string, fileRead, bytesRead *atomic.Uint64, sigCh chan os.Signal, l *slog.Logger) error {
+	for _, subDirName := range subDirNames {
+		if len(sigCh) == 1 {
 			l.Info("cancelling due to syscall.SIGINT signal")
 			break
 		} // we are doing bubble up here
-		p := "./json/" + subDirs
-		subDirNames, subDirNamesErr := os.Open(p) // I should take care of (*os.File).Close() here but later not now
-		if subDirNamesErr != nil {
-			l.Error("error during opening dir", "dir name", p, "error value", subDirNamesErr, "process", "skipping...")
+		p := "./json/" + subDirName
+		subDirectory, subDirectoryErr := os.Open(p)
+		if subDirectoryErr != nil {
+			l.Error("error during opening", "error value", subDirectoryErr, "process", "skipping...")
 			continue
-			// what are we doing here with this "subDirNamesErr"?
-			// we are skipping one subdirs since we do not get to open it no need to return here
-			// it would messup all the other dirs that should be read
 		}
-	deeper:
-		for {
-			if len(sigCh)==1{break deeper} // we are doing bubble up here
-			fileCollection, fileCollectionErr := subDirNames.Readdirnames(10)
-			if fileCollectionErr != nil {
-				if errors.Is(fileCollectionErr, io.EOF) {
-					break deeper
-					// io.EOF error does not matter
-				}
-				l.Error("error during file name read", "dir name", p, "error value", fileCollectionErr, "process", "skipping...")
-				continue deeper
-				// what are we doing here with this "fileCollectionErr"?
-				// we are skipping one of 10 subdirs since we do not get to open it no need to return here
-				// it would messup all the other dirs that should be read
-			}
-		fileLoop:
-			for _, fileName := range fileCollection {
-				if len(sigCh)==1{break fileLoop} // we are doing bubble up here
-				b, err := os.ReadFile(p + "/" + fileName)
-				if err != nil {
-					l.Error("error during reading file", "file name", p+"/"+fileName, "error value", err, "process", "skipping...")
-					continue fileLoop
-				}
-				if err := json.Unmarshal(b, &internal.Js{}); err != nil {
-					l.Error("error during marshelling file", "file name", p+"/"+fileName, "error value", err, "process", "skipping...")
-					continue fileLoop
-				}
-				fileRead.Add(1)
-				bytesRead.Add(uint64(len(b)))
-			}
+		if err := prossesDirectory(p, subDirectory, fileRead, bytesRead, sigCh, l); err != nil {
+
 		}
-		subDirNames.Close()
+		subDirectory.Close()
 	}
+	return nil
+}
+
+func prossesDirectory(p string, subDirectories *os.File, fileRead, bytesRead *atomic.Uint64, sigCh chan os.Signal, l *slog.Logger) error {
+	for {
+		if (len(sigCh)) == 1 {
+			break
+		}
+		fileNames, fileNamesErr := subDirectories.Readdirnames(10)
+		if fileNamesErr != nil {
+			if errors.Is(fileNamesErr, io.EOF) {
+				break
+			}
+			l.Error("error during getting file names", "error value", fileNamesErr, "process", "skipping...")
+			continue
+		}
+		for _, fileName := range fileNames {
+			if (len(sigCh)) == 1 {
+				break
+			}
+			fileName = path.Join(p, "/", fileName)
+			if err := fileProcess(fileName, fileRead, bytesRead); err != nil {
+				log.Println(err)
+			}
+		}
+	}
+	return nil
+}
+
+// this was never told to be done
+// but I can assume this would be my next step
+func fileProcess(fileName string, fileRead, bytesRead *atomic.Uint64) error {
+	b, err := os.ReadFile(fileName)
+	if err != nil {
+		return fmt.Errorf("error during reading file %v with value %+v", fileName, err)
+	}
+	if err := json.Unmarshal(b, &internal.Js{}); err != nil {
+		return fmt.Errorf("error during Unmarshal file %v with value %+v", fileName, err)
+	}
+	fileRead.Add(1)
+	bytesRead.Add(uint64(len(b)))
 	return nil
 }
