@@ -52,13 +52,7 @@ func gracefulRead(sigCh chan os.Signal, l *slog.Logger) (uint, uint, error) {
 			l.Error("error during reading ./json sub dirs", "error value", subDirNameErr, "process", "skipping...")
 			continue
 		}
-		if err := prossesDirectories(subDirNames, &fileRead, &bytesRead, sigCh, l); err != nil {
-			// I did not change any kind of logic at all
-			// created prossesDirectories([]string, *atomic.Uint64,*slog.Logger) error
-			// passed in atomic pointers
-			// according to the previous logic we handle errors just by logging and not returning
-			// please give me some suggestions
-		}
+		prossesDirectories(subDirNames, &fileRead, &bytesRead, sigCh, l)
 	}
 	return uint(fileRead.Load()), uint(bytesRead.Load()), nil
 }
@@ -75,9 +69,7 @@ func prossesDirectories(subDirNames []string, fileRead, bytesRead *atomic.Uint64
 			l.Error("error during opening", "error value", subDirectoryErr, "process", "skipping...")
 			continue
 		}
-		if err := prossesDirectory(p, subDirectory, fileRead, bytesRead, sigCh, l); err != nil {
-
-		}
+		prossesDirectory(p, subDirectory, fileRead, bytesRead, sigCh, l)
 		subDirectory.Close()
 	}
 	return nil
@@ -85,7 +77,7 @@ func prossesDirectories(subDirNames []string, fileRead, bytesRead *atomic.Uint64
 
 func prossesDirectory(p string, subDirectories *os.File, fileRead, bytesRead *atomic.Uint64, sigCh chan os.Signal, l *slog.Logger) error {
 	for {
-		if (len(sigCh)) == 1 {
+		if len(sigCh) == 1 {
 			break
 		}
 		fileNames, fileNamesErr := subDirectories.Readdirnames(10)
@@ -96,8 +88,14 @@ func prossesDirectory(p string, subDirectories *os.File, fileRead, bytesRead *at
 			l.Error("error during getting file names", "error value", fileNamesErr, "process", "skipping...")
 			continue
 		}
+		processFileNames(p,fileNames,fileRead,bytesRead,sigCh)
+	}
+	return nil
+}
+
+func processFileNames(p string,fileNames []string,fileRead, bytesRead *atomic.Uint64, sigCh chan os.Signal)error{
 		for _, fileName := range fileNames {
-			if (len(sigCh)) == 1 {
+			if len(sigCh) == 1 {
 				break
 			}
 			fileName = path.Join(p, "/", fileName)
@@ -105,7 +103,6 @@ func prossesDirectory(p string, subDirectories *os.File, fileRead, bytesRead *at
 				log.Println(err)
 			}
 		}
-	}
 	return nil
 }
 

@@ -46,13 +46,7 @@ func read(l *slog.Logger) (uint, uint, error) {
 			l.Error("error during reading ./json sub dirs", "error value", subDirNameErr, "process", "skipping...")
 			continue
 		}
-		if err := prossesDirectories(subDirNames, &fileRead, &bytesRead, l); err != nil {
-			// I did not change any kind of logic at all
-			// created prossesDirectories([]string, *atomic.Uint64,*slog.Logger) error
-			// passed in atomic pointers
-			// according to the previous logic we handle errors just by logging and not returning
-			// please give me some suggestions
-		}
+		prossesDirectories(subDirNames, &fileRead, &bytesRead, l)
 	}
 	return uint(fileRead.Load()), uint(bytesRead.Load()), nil
 }
@@ -65,9 +59,7 @@ func prossesDirectories(subDirNames []string, fileRead, bytesRead *atomic.Uint64
 			l.Error("error during opening", "error value", subDirectoryErr, "process", "skipping...")
 			continue
 		}
-		if err := prossesDirectory(p, subDirectory, fileRead, bytesRead, l); err != nil {
-
-		}
+		prossesDirectory(p, subDirectory, fileRead, bytesRead, l)
 		subDirectory.Close()
 	}
 	return nil
@@ -85,9 +77,7 @@ func prossesDirectory(p string, subDirectories *os.File, fileRead, bytesRead *at
 		}
 		for _, fileName := range fileNames {
 			fileName = path.Join(p, "/", fileName)
-			if err := fileProcess(fileName, fileRead, bytesRead); err != nil {
-				log.Println(err)
-			}
+			fileProcess(fileName, fileRead, bytesRead)
 		}
 	}
 	return nil
