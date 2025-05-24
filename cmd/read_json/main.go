@@ -66,6 +66,7 @@ func prossesDirectories(subDirNames []string, fileRead, bytesRead *atomic.Uint64
 }
 
 func prossesDirectory(p string, subDirectories *os.File, fileRead, bytesRead *atomic.Uint64, l *slog.Logger) error {
+	defer subDirectories.Close()
 	for {
 		fileNames, fileNamesErr := subDirectories.Readdirnames(10)
 		if fileNamesErr != nil {

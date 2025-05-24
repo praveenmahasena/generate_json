@@ -70,12 +70,12 @@ func prossesDirectories(subDirNames []string, fileRead, bytesRead *atomic.Uint64
 			continue
 		}
 		prossesDirectory(p, subDirectory, fileRead, bytesRead, sigCh, l)
-		subDirectory.Close()
 	}
 	return nil
 }
 
 func prossesDirectory(p string, subDirectories *os.File, fileRead, bytesRead *atomic.Uint64, sigCh chan os.Signal, l *slog.Logger) error {
+	defer subDirectories.Close()
 	for {
 		if len(sigCh) == 1 {
 			break
