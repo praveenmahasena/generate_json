@@ -75,11 +75,19 @@ func prossesDirectory(p string, subDirectories *os.File, fileRead, bytesRead *at
 			l.Error("error during getting file names", "error value", fileNamesErr, "process", "skipping...")
 			continue
 		}
+		processFileNames(p,fileNames,fileRead,bytesRead)
+	}
+	return nil
+}
+
+
+func processFileNames(p string,fileNames []string,fileRead, bytesRead *atomic.Uint64)error{
 		for _, fileName := range fileNames {
 			fileName = path.Join(p, "/", fileName)
-			fileProcess(fileName, fileRead, bytesRead)
+			if err := fileProcess(fileName, fileRead, bytesRead); err != nil {
+				log.Println(err)
+			}
 		}
-	}
 	return nil
 }
 
