@@ -63,24 +63,25 @@ func prossesDirectories(subDirNames []string, fileRead, bytesRead *atomic.Uint64
 			l.Info("cancelling due to syscall.SIGINT signal")
 			break
 		} // we are doing bubble up here
-		p := "./json/" + subDirName
-		subDirectory, subDirectoryErr := os.Open(p)
-		if subDirectoryErr != nil {
-			l.Error("error during opening", "error value", subDirectoryErr, "process", "skipping...")
-			continue
+		if err := prossesDirectory(subDirName, fileRead, bytesRead, sigCh, l); err != nil {
+			log.Panicln(err)
 		}
-		prossesDirectory(p, subDirectory, fileRead, bytesRead, sigCh, l)
 	}
 	return nil
 }
 
-func prossesDirectory(p string, subDirectories *os.File, fileRead, bytesRead *atomic.Uint64, sigCh chan os.Signal, l *slog.Logger) error {
-	defer subDirectories.Close()
+func prossesDirectory(subDirName string, fileRead, bytesRead *atomic.Uint64, sigCh chan os.Signal, l *slog.Logger) error {
+	p := "./json/" + subDirName
+	subDirectory, subDirectoryErr := os.Open(p)
+	if subDirectoryErr != nil {
+		return fmt.Errorf("error during opening dir :%v with value %+v", p, subDirectoryErr)
+	}
+	defer subDirectory.Close()
 	for {
 		if len(sigCh) == 1 {
 			break
 		}
-		fileNames, fileNamesErr := subDirectories.Readdirnames(10)
+		fileNames, fileNamesErr := subDirectory.Readdirnames(10)
 		if fileNamesErr != nil {
 			if errors.Is(fileNamesErr, io.EOF) {
 				break
@@ -99,16 +100,14 @@ func processFileNames(p string, fileNames []string, fileRead, bytesRead *atomic.
 			break
 		}
 		fileName = path.Join(p, "/", fileName)
-		if err := fileProcess(fileName, fileRead, bytesRead); err != nil {
+		if err := processAndRemoveFile(fileName, fileRead, bytesRead); err != nil {
 			log.Println(err)
 		}
 	}
 	return nil
 }
 
-// this was never told to be done
-// but I can assume this would be my next step
-func fileProcess(fileName string, fileRead, bytesRead *atomic.Uint64) error {
+func processAndRemoveFile(fileName string, fileRead, bytesRead *atomic.Uint64) error {
 	b, err := os.ReadFile(fileName)
 	if err != nil {
 		return fmt.Errorf("error during reading file %v with value %+v", fileName, err)
@@ -118,5 +117,8 @@ func fileProcess(fileName string, fileRead, bytesRead *atomic.Uint64) error {
 	}
 	fileRead.Add(1)
 	bytesRead.Add(uint64(len(b)))
+	if err := os.RemoveAll(fileName); err != nil {
+		return fmt.Errorf("error during deleting off file %v with value %+v", fileName, err)
+	}
 	return nil
 }

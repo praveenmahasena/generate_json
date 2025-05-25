@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	defaultAmount      uint = 1000
-	defaultDirectories uint = 10_000
+	defaultAmount      uint = 100
+	defaultDirectories uint = 100
 )
 
 type Jsonwriter struct {
@@ -34,8 +34,8 @@ func new(id, directories uint) *Jsonwriter {
 }
 
 func readAmount() (uint, uint) {
-	amount := flag.Uint("amount", defaultAmount, "amount of json files this binary should generate would be defaulted to 10_000")
-	directories := flag.Uint("directories", defaultDirectories, "amount of json directories this binary should generate would be defaulted to 1_000")
+	amount := flag.Uint("amount", defaultAmount, "amount of json files this binary should generate would be defaulted to 100")
+	directories := flag.Uint("directories", defaultDirectories, "amount of json directories this binary should generate would be defaulted to 100")
 	flag.Parse()
 	return *(amount), *(directories) // call me old idc but been doing Clang for awhile and this *() reference seems more appealing then just doing *
 }
