@@ -88,21 +88,21 @@ func prossesDirectory(p string, subDirectories *os.File, fileRead, bytesRead *at
 			l.Error("error during getting file names", "error value", fileNamesErr, "process", "skipping...")
 			continue
 		}
-		processFileNames(p,fileNames,fileRead,bytesRead,sigCh)
+		processFileNames(p, fileNames, fileRead, bytesRead, sigCh)
 	}
 	return nil
 }
 
-func processFileNames(p string,fileNames []string,fileRead, bytesRead *atomic.Uint64, sigCh chan os.Signal)error{
-		for _, fileName := range fileNames {
-			if len(sigCh) == 1 {
-				break
-			}
-			fileName = path.Join(p, "/", fileName)
-			if err := fileProcess(fileName, fileRead, bytesRead); err != nil {
-				log.Println(err)
-			}
+func processFileNames(p string, fileNames []string, fileRead, bytesRead *atomic.Uint64, sigCh chan os.Signal) error {
+	for _, fileName := range fileNames {
+		if len(sigCh) == 1 {
+			break
 		}
+		fileName = path.Join(p, "/", fileName)
+		if err := fileProcess(fileName, fileRead, bytesRead); err != nil {
+			log.Println(err)
+		}
+	}
 	return nil
 }
 
