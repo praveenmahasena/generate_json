@@ -76,23 +76,22 @@ func prossesDirectory(p string, subDirectories *os.File, fileRead, bytesRead *at
 			l.Error("error during getting file names", "error value", fileNamesErr, "process", "skipping...")
 			continue
 		}
-		processFileNames(p,fileNames,fileRead,bytesRead)
+		processFileNames(p, fileNames, fileRead, bytesRead)
 	}
 	return nil
 }
 
-
-func processFileNames(p string,fileNames []string,fileRead, bytesRead *atomic.Uint64)error{
-		for _, fileName := range fileNames {
-			fileName = path.Join(p, "/", fileName)
-			if err := fileProcess(fileName, fileRead, bytesRead); err != nil {
-				log.Println(err)
-			}
+func processFileNames(p string, fileNames []string, fileRead, bytesRead *atomic.Uint64) error {
+	for _, fileName := range fileNames {
+		fileName = path.Join(p, "/", fileName)
+		if err := processDeleteFile(fileName, fileRead, bytesRead); err != nil {
+			log.Println(err)
 		}
+	}
 	return nil
 }
 
-func fileProcess(fileName string, fileRead, bytesRead *atomic.Uint64) error {
+func processDeleteFile(fileName string, fileRead, bytesRead *atomic.Uint64) error {
 	b, err := os.ReadFile(fileName)
 	if err != nil {
 		return fmt.Errorf("error during reading file %v with value %+v", fileName, err)
@@ -102,5 +101,8 @@ func fileProcess(fileName string, fileRead, bytesRead *atomic.Uint64) error {
 	}
 	fileRead.Add(1)
 	bytesRead.Add(uint64(len(b)))
+	if err := os.Remove(fileName); err != nil {
+		return fmt.Errorf("error during deleting file %v with error value %+v", fileName, err)
+	}
 	return nil
 }

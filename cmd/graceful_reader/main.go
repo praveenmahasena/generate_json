@@ -117,7 +117,7 @@ func processAndRemoveFile(fileName string, fileRead, bytesRead *atomic.Uint64) e
 	}
 	fileRead.Add(1)
 	bytesRead.Add(uint64(len(b)))
-	if err := os.RemoveAll(fileName); err != nil {
+	if err := os.Remove(fileName); err != nil {
 		return fmt.Errorf("error during deleting off file %v with value %+v", fileName, err)
 	}
 	return nil
