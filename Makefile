@@ -7,6 +7,8 @@ all: reader
 all: reader_race
 all: graceful_reader
 all: graceful_reader_race
+all: shutdown_ctx
+all: shutdown_ctx_race
 
 test: vet
 test: base_test
@@ -45,6 +47,10 @@ graceful_reader: graceful_reader
 
 graceful_reader_race: graceful_reader_race
 
+shutdown_ctx: shutdown_ctx
+
+shutdown_ctx_race: shutdown_ctx_race
+
 graceful_reader:
 	go build -o ./bin/graceful_reader ./cmd/graceful_reader/
 
@@ -62,3 +68,9 @@ jsonreader:
 
 jsonreader_race:
 	go build --race -o ./bin/jsonreader_race ./cmd/read_json/
+
+shutdown_ctx:
+	go build -o ./bin/shutdown_ctx ./cmd/shutdown_ctx/
+
+shutdown_ctx_race:
+	go build --race -o ./bin/shutdown_ctx_race ./cmd/shutdown_ctx/
