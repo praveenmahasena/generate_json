@@ -17,39 +17,37 @@ import (
 )
 
 func main() {
-	fileRead := atomic.Uint64{}
-	bytesRead := atomic.Uint64{}
-	sigCh := make(chan os.Signal, 1)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // let's face it we do not need another leak
+	defer cancel() // let's not have a context leak shall we?
 
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	go func(cancel context.CancelFunc, sigCh chan os.Signal) {
+	go func(cancel context.CancelFunc) {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		<-sigCh
-		fmt.Println("cancel signal has been sent")
-		cancel()
-	}(cancel, sigCh)
+		fmt.Println("cancelling....")
+		cancel() // or shall I do defer and make it in the top of func? // for now it does not matter for me
+	}(cancel)
 
+	var fileRead, bytesRead atomic.Uint64
 	if err := gracefulRead(ctx, &fileRead, &bytesRead); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 
-	fmt.Printf("file read %v \n", fileRead.Load())
-	fmt.Printf("bytes read %v \n", bytesRead.Load())
+	fmt.Printf("total file read %v \n", fileRead.Load())
+	fmt.Printf("total bytes read %v \n", bytesRead.Load())
 }
 
-func gracefulRead(ctx context.Context, fileRead, bytesRead *atomic.Uint64) chan error {
-	errCh := make(chan error, 1)
+func gracefulRead(ctx context.Context, fileRead, bytesRead *atomic.Uint64) error {
 	jsonDir, jsonDirErr := os.Open("./json")
 	if jsonDirErr != nil {
-		errCh <- fmt.Errorf("error during opeing ./json dir with value %+v", jsonDirErr)
-		return errCh
+		return fmt.Errorf("error during opeing ./json dir with value %+v", jsonDirErr)
 	}
 	defer jsonDir.Close()
 
 	for {
-		<-ctx.Done()
+		if ctx.Err() != nil {
+			break
+		}
 		subDirNames, subDirNameErr := jsonDir.Readdirnames(10)
 		if subDirNameErr != nil {
 			if errors.Is(subDirNameErr, io.EOF) {
@@ -59,25 +57,24 @@ func gracefulRead(ctx context.Context, fileRead, bytesRead *atomic.Uint64) chan 
 			log.Printf("error during reading subdir in ./json with error value %+v", subDirNameErr)
 			continue
 		}
-		prossesDirectories(ctx,subDirNames, fileRead, bytesRead )
+		prossesDirectories(ctx, subDirNames, fileRead, bytesRead)
 	}
 	return nil
 }
 
-func prossesDirectories(ctx context.Context,subDirNames []string, fileRead, bytesRead *atomic.Uint64) error {
+func prossesDirectories(ctx context.Context, subDirNames []string, fileRead, bytesRead *atomic.Uint64) error {
 	for _, subDirName := range subDirNames {
-		if bool.Load() {
-			log.Println("cancelling due to syscall.SIGINT signal")
+		if ctx.Err() != nil {
 			break
-		} // we are doing bubble up here
-		if err := prossesDirectory(subDirName, fileRead, bytesRead, bool); err != nil {
+		}
+		if err := prossesDirectory(ctx, subDirName, fileRead, bytesRead); err != nil {
 			log.Panicln(err)
 		}
 	}
 	return nil
 }
 
-func prossesDirectory(subDirName string, fileRead, bytesRead *atomic.Uint64, bool *atomic.Bool) error {
+func prossesDirectory(ctx context.Context, subDirName string, fileRead, bytesRead *atomic.Uint64) error {
 	p := "./json/" + subDirName
 	subDirectory, subDirectoryErr := os.Open(p)
 	if subDirectoryErr != nil {
@@ -85,7 +82,7 @@ func prossesDirectory(subDirName string, fileRead, bytesRead *atomic.Uint64, boo
 	}
 	defer subDirectory.Close()
 	for {
-		if bool.Load() {
+		if ctx.Err() != nil {
 			break
 		}
 		fileNames, fileNamesErr := subDirectory.Readdirnames(10)
@@ -96,14 +93,14 @@ func prossesDirectory(subDirName string, fileRead, bytesRead *atomic.Uint64, boo
 			log.Printf("error during getting file names with error value %+v process skipping...", fileNamesErr)
 			continue
 		}
-		processFileNames(p, fileNames, fileRead, bytesRead, bool)
+		processFileNames(ctx, p, fileNames, fileRead, bytesRead)
 	}
 	return nil
 }
 
-func processFileNames(p string, fileNames []string, fileRead, bytesRead *atomic.Uint64, bool *atomic.Bool) error {
+func processFileNames(ctx context.Context, p string, fileNames []string, fileRead, bytesRead *atomic.Uint64) error {
 	for _, fileName := range fileNames {
-		if bool.Load() {
+		if ctx.Err() != nil {
 			break
 		}
 		fileName = path.Join(p, "/", fileName)
