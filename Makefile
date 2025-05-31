@@ -9,6 +9,8 @@ all: graceful_reader
 all: graceful_reader_race
 all: shutdown_ctx
 all: shutdown_ctx_race
+all: shutdown_reader_ctx
+all: shutdown_reader_ctx_race
 
 test: vet
 test: base_test
@@ -51,6 +53,10 @@ shutdown_ctx: shutdown_ctx
 
 shutdown_ctx_race: shutdown_ctx_race
 
+shutdown_reader_ctx: shutdown_reader_ctx
+
+shutdown_reader_ctx_race: shutdown_reader_ctx_race
+
 graceful_reader:
 	go build -o ./bin/graceful_reader ./cmd/graceful_reader/
 
@@ -74,3 +80,9 @@ shutdown_ctx:
 
 shutdown_ctx_race:
 	go build --race -o ./bin/shutdown_ctx_race ./cmd/shutdown_ctx/
+
+shutdown_reader_ctx:
+	go build -o ./bin/shutdown_reader_ctx ./cmd/shutdown_reader_ctx
+
+shutdown_reader_ctx_race:
+	go build -o ./bin/shutdown_reader_ctx_race ./cmd/shutdown_reader_ctx
