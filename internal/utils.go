@@ -1,9 +1,9 @@
 package internal
 
 import (
+	"context"
 	"log/slog"
 	"os"
-	"context"
 )
 
 type Js struct {
@@ -11,7 +11,8 @@ type Js struct {
 }
 
 type JobReader interface {
-  Read(ctx context.Context, c chan<- string)
+	Read(ctx context.Context, c chan<- string)
+	ProcessAndDelete(fileName string) error
 }
 
 func NewLogger(w *os.File, source bool, level int) *slog.Logger {
@@ -19,6 +20,6 @@ func NewLogger(w *os.File, source bool, level int) *slog.Logger {
 		AddSource: source,
 		Level:     slog.Level(level),
 	}
-	handler := slog.NewJSONHandler(os.Stdout, &options)
+	handler := slog.NewJSONHandler(w, &options)
 	return slog.New(handler)
 }
