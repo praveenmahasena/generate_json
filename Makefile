@@ -1,3 +1,4 @@
+CGO_ENABLED=0
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 all: test
 all: vet
@@ -58,31 +59,31 @@ shutdown_reader_ctx: shutdown_reader_ctx
 shutdown_reader_ctx_race: shutdown_reader_ctx_race
 
 graceful_reader:
-	go build -o ./bin/graceful_reader ./cmd/graceful_reader/
+	@go build -o ./bin/graceful_reader ./cmd/graceful_reader/
 
 graceful_reader_race:
-	go build --race -o ./bin/graceful_reader_race ./cmd/generate_json/
+	@go build --race -o ./bin/graceful_reader_race ./cmd/generate_json/
 
 generate_json:
-	go build -o ./bin/generate_json ./cmd/generate_json/
+	@go build -o ./bin/generate_json ./cmd/generate_json/
 
 generate_json_race:
-	go build --race -o ./bin/generate_json_race ./cmd/generate_json/
+	@go build --race -o ./bin/generate_json_race ./cmd/generate_json/
 
 jsonreader:
-	go build -o ./bin/jsonreader ./cmd/read_json/
+	@go build -o ./bin/jsonreader ./cmd/read_json/
 
 jsonreader_race:
-	go build --race -o ./bin/jsonreader_race ./cmd/read_json/
+	@go build --race -o ./bin/jsonreader_race ./cmd/read_json/
 
 shutdown_ctx:
-	go build -o ./bin/shutdown_ctx ./cmd/shutdown_ctx/
+	@go build -o ./bin/shutdown_ctx ./cmd/shutdown_ctx/
 
 shutdown_ctx_race:
-	go build --race -o ./bin/shutdown_ctx_race ./cmd/shutdown_ctx/
+	@go build --race -o ./bin/shutdown_ctx_race ./cmd/shutdown_ctx/
 
 shutdown_reader_ctx:
-	go build -o ./bin/shutdown_reader_ctx ./cmd/shutdown_reader_ctx
+	@go build -o ./bin/shutdown_reader_ctx ./cmd/shutdown_reader_ctx
 
 shutdown_reader_ctx_race:
-	go build -o ./bin/shutdown_reader_ctx_race ./cmd/shutdown_reader_ctx
+	@go build -o ./bin/shutdown_reader_ctx_race ./cmd/shutdown_reader_ctx
