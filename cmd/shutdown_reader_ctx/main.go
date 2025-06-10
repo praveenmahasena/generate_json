@@ -62,7 +62,7 @@ func (s *state) Read(ctx context.Context, nameCh chan<- string) error {
 	defer jsonDir.Close()
 
 	for {
-		if ctx.Err() != nil {
+		if ctx.Err() != nil && errors.Is(ctx.Err(), context.Canceled) {
 			break
 		}
 		subDirNames, subDirNameErr := jsonDir.Readdirnames(10)
@@ -106,7 +106,7 @@ func (s *state) ShowStats() {
 
 func prossesDirectories(ctx context.Context, subDirNames []string, nameCh chan<- string) {
 	for _, subDirName := range subDirNames {
-		if ctx.Err() != nil {
+		if ctx.Err() != nil && errors.Is(ctx.Err(), context.Canceled) {
 			break
 		}
 		prossesDirectory(ctx, subDirName, nameCh)
@@ -122,7 +122,7 @@ func prossesDirectory(ctx context.Context, subDirName string, nameCh chan<- stri
 	}
 	defer subDirectory.Close()
 	for {
-		if ctx.Err() != nil {
+		if ctx.Err() != nil && errors.Is(ctx.Err(), context.Canceled) {
 			break
 		}
 		fileNames, fileNamesErr := subDirectory.Readdirnames(10)
@@ -139,7 +139,7 @@ func prossesDirectory(ctx context.Context, subDirName string, nameCh chan<- stri
 
 func processFileNames(ctx context.Context, p string, fileNames []string, fileNameCh chan<- string) {
 	for _, fileName := range fileNames {
-		if ctx.Err() != nil {
+		if ctx.Err() != nil && errors.Is(ctx.Err(), context.Canceled) {
 			break
 		}
 		fileNameCh <- path.Join(p, "/", fileName)
