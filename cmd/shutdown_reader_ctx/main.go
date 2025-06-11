@@ -27,8 +27,9 @@ func main() {
 	nameCh := make(chan string)
 	doneCh := make(chan bool)
 	defer close(doneCh)
-	wg := sync.WaitGroup{}
-	go processAndDelete(s, fileRead, bytesRead)
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go processAndDelete(s, nameCh, wg)
 	if err := s.read(ctx, nameCh); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}

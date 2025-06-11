@@ -15,20 +15,30 @@ import (
 	"github.com/praveenmahasena/generate_json/internal"
 )
 
-type directoryReader struct {
-	path      string
+type state struct {
 	filesRead *atomic.Uint64
 	bytesRead *atomic.Uint64
+}
+
+func (s *state) addState(fileRead, bytesRead uint64) {
+	s.bytesRead.Add(bytesRead)
+	s.filesRead.Add(fileRead)
+}
+
+type directoryReader struct {
+	path string
+	*state
 }
 
 // sorry I could'nt come up with a good name
 type directoryReaderInterface interface {
 	read(context.Context, chan<- string) error
 	showStats()
+	addState(uint64, uint64)
 }
 
 func newState(path string, fileRead, bytesRead *atomic.Uint64) *directoryReader {
-	return &directoryReader{path, fileRead, bytesRead}
+	return &directoryReader{path, &state{fileRead, bytesRead}}
 }
 
 func (s *directoryReader) read(ctx context.Context, nameCh chan<- string) error {
@@ -39,7 +49,7 @@ func (s *directoryReader) read(ctx context.Context, nameCh chan<- string) error 
 	defer jsonDir.Close()
 
 	for {
-		if ctx.Err() != nil && errors.Is(ctx.Err(), context.Canceled) {
+		if ctx.Err() == context.Canceled {
 			break
 		}
 		subDirNames, subDirNameErr := jsonDir.Readdirnames(10)
@@ -83,7 +93,7 @@ func (s *directoryReader) showStats() {
 
 func prossesDirectories(ctx context.Context, subDirNames []string, nameCh chan<- string) {
 	for _, subDirName := range subDirNames {
-		if ctx.Err() != nil && errors.Is(ctx.Err(), context.Canceled) {
+		if ctx.Err() == context.Canceled {
 			break
 		}
 		prossesDirectory(ctx, subDirName, nameCh)
@@ -99,7 +109,7 @@ func prossesDirectory(ctx context.Context, subDirName string, nameCh chan<- stri
 	}
 	defer subDirectory.Close()
 	for {
-		if ctx.Err() != nil && errors.Is(ctx.Err(), context.Canceled) {
+		if ctx.Err() == context.Canceled {
 			break
 		}
 		fileNames, fileNamesErr := subDirectory.Readdirnames(10)
@@ -116,12 +126,11 @@ func prossesDirectory(ctx context.Context, subDirName string, nameCh chan<- stri
 
 func processFileNames(ctx context.Context, p string, fileNames []string, fileNameCh chan<- string) {
 	for _, fileName := range fileNames {
-		if ctx.Err() != nil && errors.Is(ctx.Err(), context.Canceled) {
+		if ctx.Err() == context.Canceled {
 			break
 		}
 		fileNameCh <- path.Join(p, "/", fileName)
 	}
-
 }
 
 func getPath() (string, error) {
