@@ -25,8 +25,6 @@ func main() {
 	defer cancel()
 	go internal.ShutDown(cancel)
 	nameCh := make(chan string)
-	doneCh := make(chan bool)
-	defer close(doneCh)
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go processAndDelete(s, nameCh, wg)
