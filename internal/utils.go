@@ -2,21 +2,19 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 )
 
+// Js structs to hold json structure
 type Js struct {
 	ID uint `json:"id"`
 }
 
-type JobReader interface {
-	Read(ctx context.Context, c chan<- string)
-	ProcessAndDelete(fileName string) error
-}
-
+// NewLogger helper method for logging out
 func NewLogger(w *os.File, source bool, level int) *slog.Logger {
 	options := slog.HandlerOptions{
 		AddSource: source,
@@ -32,4 +30,13 @@ func ShutDown(cancel context.CancelFunc) {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	<-sigCh
 	cancel()
+}
+
+// GetPath ...
+func GetPath() (string, error) {
+	wd, wdErr := os.Getwd()
+	if wdErr != nil {
+		return "", fmt.Errorf("error during getting working dir with value %#v", wdErr)
+	}
+	return wd + "/json", nil
 }

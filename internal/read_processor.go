@@ -1,9 +1,7 @@
-// Package main ...
-package main
+package internal
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,37 +9,43 @@ import (
 	"os"
 	"path"
 	"sync/atomic"
-
-	"github.com/praveenmahasena/generate_json/internal"
 )
 
+type DirectoryReaderInterface interface {
+	Read(context.Context, chan<- string) error
+	ShowStats()
+	AddState(uint64, uint64)
+}
+
+func (s *state) ShowStats() {
+	fmt.Printf("\n fileRead %v", s.fileRead.Load())
+	fmt.Printf("\n bytesRead %v", s.bytesRead.Load())
+}
+
 type state struct {
-	filesRead *atomic.Uint64
-	bytesRead *atomic.Uint64
+	fileRead, bytesRead *atomic.Uint64
 }
 
-func (s *state) addState(fileRead, bytesRead uint64) {
-	s.bytesRead.Add(bytesRead)
-	s.filesRead.Add(fileRead)
-}
-
-type directoryReader struct {
+type DirectoryReader struct {
 	path string
 	*state
 }
 
-// sorry I could'nt come up with a good name
-type directoryReaderInterface interface {
-	read(context.Context, chan<- string) error
-	showStats()
-	addState(uint64, uint64)
+func (s *state) AddState(fileRead, bytesRead uint64) {
+	s.fileRead.Add(fileRead)
+	s.bytesRead.Add(bytesRead)
 }
 
-func newState(path string, fileRead, bytesRead *atomic.Uint64) *directoryReader {
-	return &directoryReader{path, &state{fileRead, bytesRead}}
+func (s *state) GetStats() {
+	fmt.Printf("\n file read %v", s.fileRead)
+	fmt.Printf("\n bytes read %v", s.bytesRead)
 }
 
-func (s *directoryReader) read(ctx context.Context, nameCh chan<- string) error {
+func NewdirectoryReader(path string, fileRead, bytesRead *atomic.Uint64) *DirectoryReader {
+	return &DirectoryReader{path, &state{fileRead, bytesRead}}
+}
+
+func (d *DirectoryReader) Read(ctx context.Context, nameCh chan<- string) error {
 	jsonDir, jsonDirErr := os.Open("./json")
 	if jsonDirErr != nil {
 		return fmt.Errorf("error during opeing ./json dir with value %+v", jsonDirErr)
@@ -64,31 +68,6 @@ func (s *directoryReader) read(ctx context.Context, nameCh chan<- string) error 
 		prossesDirectories(ctx, subDirNames, nameCh)
 	}
 	return nil
-}
-
-func (s *directoryReader) ProcessAndDelete(fileNameCh <-chan string, done chan bool) {
-	for fileName := range fileNameCh {
-		b, err := os.ReadFile(fileName)
-		if err != nil {
-			log.Printf("error during reading file %v with value %v", fileName, err)
-			continue
-		}
-		if err := json.Unmarshal(b, &internal.Js{}); err != nil {
-			log.Printf("error during wring bytes file %v with value %v", fileName, err)
-			continue
-		}
-		s.filesRead.Add(1)
-		s.bytesRead.Add(uint64(len(b)))
-		if err := os.Remove(fileName); err != nil {
-			log.Printf("error during deleting file %v with value %#v", fileName, err)
-		}
-	}
-	done <- true
-}
-
-func (s *directoryReader) showStats() {
-	fmt.Printf("\ntotal file read %v\n", s.filesRead.Load())
-	fmt.Printf("total bytes read %v \n", s.bytesRead.Load())
 }
 
 func prossesDirectories(ctx context.Context, subDirNames []string, nameCh chan<- string) {
@@ -131,12 +110,4 @@ func processFileNames(ctx context.Context, p string, fileNames []string, fileNam
 		}
 		fileNameCh <- path.Join(p, "/", fileName)
 	}
-}
-
-func getPath() (string, error) {
-	wd, wdErr := os.Getwd()
-	if wdErr != nil {
-		return "", fmt.Errorf("error during getting working dir with value %#v", wdErr)
-	}
-	return wd + "/json", nil
 }
