@@ -18,7 +18,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, pathErr)
 		os.Exit(-1)
 	}
-	d := internal.NewdirectoryReader(path, &atomic.Uint64{}, &atomic.Uint64{})
+	d := newdirectoryReader(path, &atomic.Uint64{}, &atomic.Uint64{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go internal.ShutDown(cancel)
